@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "psk_psa_py"
+version = "0.0.1"
+authors = [
+    { name="Colin Basnett", email="cmbasnett@proton.me" }
+]
+description = ""
+readme = "README.md"
+requires-python = ">3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+dependencies = [
+    "numpy",
+]
+
+[project.urls]
+Homepage = "https://github.com/DarklightGames/psk_psa_py"
+Issues = "https://github.com/DarklightGames/psk_psa_py/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/psk_psa_py"]
