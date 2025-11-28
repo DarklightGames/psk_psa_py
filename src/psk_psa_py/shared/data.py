@@ -4,7 +4,6 @@ from typing import Tuple
 class StructureEq(Structure):
     def __eq__(self, other):
         for fld in self._fields_:
-            if isinstance(fld[1], Array):
             if getattr(self, fld[0]) != getattr(other, fld[0]):
                 return False
         return True

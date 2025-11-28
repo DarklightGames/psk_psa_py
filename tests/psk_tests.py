@@ -1,20 +1,10 @@
-from io import BufferedReader, BufferedWriter, BytesIO
+from io import BytesIO
 from pathlib import Path
-import pytest
 from psk_psa_py.psk.reader import read_psk, read_psk_from_file
 from psk_psa_py.psk.writer import write_psk
-import logging
-
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger()
 
 
-@pytest.fixture(autouse=True)
-def run_before_and_after_Tests(tmpdir):
-    pass
-
-
-def assert_psk_round_trip_data_is_unchanged(path: Path):
+def _assert_psk_round_trip_data_is_unchanged(path: Path):
     input = read_psk_from_file(str(path))
     
     fp = BytesIO()
@@ -111,10 +101,12 @@ def test_psk_import_export_round_trip():
 
     from glob import glob
 
-    test_data_directory = './tests/data'
+    test_data_directory = './tests/data/psk'
+    count = 0
     for filename in glob('*.psk', root_dir=test_data_directory):
-        logger.warning(filename)
         path = Path(test_data_directory) / filename
         path = path.resolve()
-        assert_psk_round_trip_data_is_unchanged(path)
-        
+        _assert_psk_round_trip_data_is_unchanged(path)
+        count += 1
+    
+    assert count > 0

@@ -105,24 +105,25 @@ class PsaReader(object):
         while fp.read(1):
             fp.seek(-1, 1)
             section = Section.from_buffer_copy(fp.read(sizeof(Section)))
-            if section.name == b'ANIMHEAD':
-                pass
-            elif section.name == b'BONENAMES':
-                PsaReader._read_types(fp, PsxBone, section, psa.bones)
-            elif section.name == b'ANIMINFO':
-                sequences = []
-                PsaReader._read_types(fp, Psa.Sequence, section, sequences)
-                # Try to fix CUE4Parse bug, if necessary.
-                _try_fix_cue4parse_issue_103(sequences)
-                for sequence in sequences:
-                    psa.sequences[sequence.name.decode()] = sequence
-            elif section.name == b'ANIMKEYS':
-                # Skip keys on this pass. We will keep this file open and read from it as needed.
-                self.keys_data_offset = fp.tell()
-                fp.seek(section.data_size * section.data_count, 1)
-            else:
-                fp.seek(section.data_size * section.data_count, 1)
-                print(f'Unrecognized section in PSA: "{section.name}"')
+            match section.name:
+                case b'ANIMHEAD':
+                    pass
+                case b'BONENAMES':
+                    PsaReader._read_types(fp, PsxBone, section, psa.bones)
+                case b'ANIMINFO':
+                    sequences = []
+                    PsaReader._read_types(fp, Psa.Sequence, section, sequences)
+                    # Try to fix CUE4Parse bug, if necessary.
+                    _try_fix_cue4parse_issue_103(sequences)
+                    for sequence in sequences:
+                        psa.sequences[sequence.name.decode()] = sequence
+                case b'ANIMKEYS':
+                    # Skip keys on this pass. We will keep this file open and read from it as needed.
+                    self.keys_data_offset = fp.tell()
+                    fp.seek(section.data_size * section.data_count, 1)
+                case _:
+                    fp.seek(section.data_size * section.data_count, 1)
+                    print(f'Unrecognized section in PSA: "{section.name}"')
         return psa
 
 

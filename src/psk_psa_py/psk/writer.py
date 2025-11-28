@@ -74,7 +74,8 @@ def write_psk_to_path(psk: Psk, path: str, is_extended_format: bool = False):
 
 
 __all__ = [
-    'write_psk'
+    'write_psk',
+    'write_psk_to_path'
 ]
 
 

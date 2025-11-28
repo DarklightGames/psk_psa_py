@@ -1,5 +1,5 @@
 from ctypes import Structure, sizeof
-from typing import Optional, Type, Collection
+from typing import Optional, Type, Collection, BinaryIO
 
 from .data import Psa
 from ..shared.data import PsxBone, Section
@@ -17,16 +17,21 @@ def _write_section(fp, name: bytes, data_type: Optional[Type[Structure]] = None,
             fp.write(datum)
 
 
-def write_psa(psa: Psa, path: str):
+def write_psa(psa: Psa, fp: BinaryIO):
+    _write_section(fp, b'ANIMHEAD')
+    _write_section(fp, b'BONENAMES', PsxBone, psa.bones)
+    _write_section(fp, b'ANIMINFO', Psa.Sequence, list(psa.sequences.values()))
+    _write_section(fp, b'ANIMKEYS', Psa.Key, psa.keys)
+
+
+def write_psa_to_file(psa: Psa, path: str):
     with open(path, 'wb') as fp:
-        _write_section(fp, b'ANIMHEAD')
-        _write_section(fp, b'BONENAMES', PsxBone, psa.bones)
-        _write_section(fp, b'ANIMINFO', Psa.Sequence, list(psa.sequences.values()))
-        _write_section(fp, b'ANIMKEYS', Psa.Key, psa.keys)
+        write_psa(psa, fp)
 
 
 __all__ = [
-    'write_psa'
+    'write_psa',
+    'write_psa_to_file'
 ]
 
 
