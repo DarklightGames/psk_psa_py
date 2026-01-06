@@ -4,7 +4,7 @@ from typing import List
 
 import numpy as np
 
-from .data import Psa
+from .data import Psa, PsaSectionName
 from ..shared.data import Section, PsxBone
 
 
@@ -107,18 +107,18 @@ class PsaReader(object):
             fp.seek(-1, 1)
             section = Section.from_buffer_copy(fp.read(sizeof(Section)))
             match section.name:
-                case b'ANIMHEAD':
+                case PsaSectionName.ANIMHEAD:
                     pass
-                case b'BONENAMES':
+                case PsaSectionName.BONENAMES:
                     PsaReader._read_types(fp, PsxBone, section, psa.bones)
-                case b'ANIMINFO':
+                case PsaSectionName.ANIMINFO:
                     sequences = []
                     PsaReader._read_types(fp, Psa.Sequence, section, sequences)
                     # Try to fix CUE4Parse bug, if necessary.
                     _try_fix_cue4parse_issue_103(sequences)
                     for sequence in sequences:
                         psa.sequences[sequence.name.decode()] = sequence
-                case b'ANIMKEYS':
+                case PsaSectionName.ANIMKEYS:
                     # Skip keys on this pass. We will keep this file open and read from it as needed.
                     self.keys_data_offset = fp.tell()
                     fp.seek(section.data_size * section.data_count, 1)

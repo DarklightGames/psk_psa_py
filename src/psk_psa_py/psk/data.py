@@ -1,7 +1,23 @@
 from ctypes import c_uint32, c_float, c_int32, c_uint8, c_int8, c_int16, c_char, c_uint16
 from typing import List
+from enum import Enum
 
 from ..shared.data import Vector3, Quaternion, Color, Vector2, PsxBone, StructureEq
+
+
+class PskSectionName(bytes, Enum):
+    ACTRHEAD = b'ACTRHEAD'
+    PNTS0000 = b'PNTS0000'
+    VTXW0000 = b'VTXW0000'
+    FACE0000 = b'FACE0000'
+    MATT0000 = b'MATT0000'
+    REFSKELT = b'REFSKELT'
+    RAWWEIGHTS = b'RAWWEIGHTS'
+    FACE3200 = b'FACE3200'
+    VERTEXCOLOR = b'VERTEXCOLOR'
+    VTXNORMS = b'VTXNORMS'
+    MRPHINFO = b'MRPHINFO'
+    MRPHDATA = b'MRPHDATA'
 
 
 class Psk(object):
@@ -154,7 +170,8 @@ class Psk(object):
         self.material_references: List[str] = []
 
 __all__ = [
-    'Psk'
+    'Psk',
+    'PskSectionName'
 ]
 
 def __dir__():

@@ -1,5 +1,6 @@
-from ctypes import Structure, c_char, c_int32, c_float, c_ubyte, Array
+from ctypes import Structure, c_char, c_int32, c_float, c_ubyte
 from typing import Tuple
+
 
 class StructureEq(Structure):
     def __eq__(self, other):

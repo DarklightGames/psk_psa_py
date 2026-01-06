@@ -1,8 +1,16 @@
 from collections import OrderedDict
 from typing import List, OrderedDict as OrderedDictType
+from enum import Enum
 
 from ctypes import Structure, c_char, c_int32, c_float
 from ..shared.data import PsxBone, Quaternion, Vector3
+
+
+class PsaSectionName(bytes, Enum):
+    ANIMHEAD = b'ANIMHEAD'
+    BONENAMES = b'BONENAMES'
+    ANIMINFO = b'ANIMINFO'
+    ANIMKEYS = b'ANIMKEYS'
 
 
 class Psa:
@@ -54,7 +62,8 @@ class Psa:
 
 
 __all__ = [
-    'Psa'
+    'Psa',
+    'PsaSectionName'
 ]
 
 

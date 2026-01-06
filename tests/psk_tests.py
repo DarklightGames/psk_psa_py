@@ -3,7 +3,7 @@ from pathlib import Path
 import warnings
 from psk_psa_py.psk.reader import read_psk, read_psk_from_file
 from psk_psa_py.psk.writer import write_psk
-from psk_psa_py.psk.data import Psk
+from psk_psa_py.psk.data import Psk, PskSectionName
 from psk_psa_py.shared.data import Section, Vector3, PsxBone
 
 
@@ -200,12 +200,12 @@ def test_psk_unhandled_section():
     
     # Write ACTRHEAD section (header)
     section = Section()
-    section.name = b'ACTRHEAD'
+    section.name = PskSectionName.ACTRHEAD
     fp.write(section)
     
     # Write a minimal PNTS0000 section (points)
     section = Section()
-    section.name = b'PNTS0000'
+    section.name = PskSectionName.PNTS0000
     section.data_size = 12
     section.data_count = 1
     fp.write(section)
@@ -221,7 +221,7 @@ def test_psk_unhandled_section():
     
     # Write REFSKELT section (bones)
     section = Section()
-    section.name = b'REFSKELT'
+    section.name = PskSectionName.REFSKELT
     section.data_size = 120
     section.data_count = 1
     fp.write(section)

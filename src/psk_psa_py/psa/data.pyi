@@ -1,7 +1,15 @@
 from typing import OrderedDict as OrderedDictType, Generator
 
 from ctypes import Structure
+from enum import Enum
 from ..shared.data import PsxBone, Quaternion, Vector3
+
+
+class PsaSectionName(bytes, Enum):
+    ANIMHEAD: bytes
+    BONENAMES: bytes
+    ANIMINFO: bytes
+    ANIMKEYS: bytes
 
 
 class Psa:
@@ -39,7 +47,8 @@ class Psa:
 
 
 __all__ = [
-    'Psa'
+    'Psa',
+    'PsaSectionName'
 ]
 
 

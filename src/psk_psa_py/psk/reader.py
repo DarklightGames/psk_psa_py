@@ -5,7 +5,7 @@ import warnings
 from pathlib import Path
 from typing import BinaryIO, List
 from ..shared.data import Section, Color, PsxBone, Vector2, Vector3
-from .data import Psk
+from .data import Psk, PskSectionName
 
 
 def _read_types(fp, data_class, section: Section, data):
@@ -49,34 +49,34 @@ def read_psk(fp: BinaryIO) -> Psk:
         fp.seek(-1, 1)
         section = Section.from_buffer_copy(fp.read(ctypes.sizeof(Section)))
         match section.name:
-            case b'ACTRHEAD':
+            case PskSectionName.ACTRHEAD:
                 pass
-            case b'PNTS0000':
+            case PskSectionName.PNTS0000:
                 _read_types(fp, Vector3, section, psk.points)
-            case b'VTXW0000':
+            case PskSectionName.VTXW0000:
                 if section.data_size == ctypes.sizeof(Psk._Wedge16):
                     _read_types(fp, Psk._Wedge16, section, psk.wedges)
                 elif section.data_size == ctypes.sizeof(Psk._Wedge32):
                     _read_types(fp, Psk._Wedge32, section, psk.wedges)
                 else:
                     raise RuntimeError('Unrecognized wedge format')
-            case b'FACE0000':
+            case PskSectionName.FACE0000:
                 _read_types(fp, Psk.Face, section, psk.faces)
-            case b'MATT0000':
+            case PskSectionName.MATT0000:
                 _read_types(fp, Psk.Material, section, psk.materials)
-            case b'REFSKELT':
+            case PskSectionName.REFSKELT:
                 _read_types(fp, PsxBone, section, psk.bones)
-            case b'RAWWEIGHTS':
+            case PskSectionName.RAWWEIGHTS:
                 _read_types(fp, Psk.Weight, section, psk.weights)
-            case b'FACE3200':
+            case PskSectionName.FACE3200:
                 _read_types(fp, Psk._Face32, section, psk.faces)
-            case b'VERTEXCOLOR':
+            case PskSectionName.VERTEXCOLOR:
                 _read_types(fp, Color, section, psk.vertex_colors)
-            case b'VTXNORMS':
+            case PskSectionName.VTXNORMS:
                 _read_types(fp, Vector3, section, psk.vertex_normals)
-            case b'MRPHINFO':
+            case PskSectionName.MRPHINFO:
                 _read_types(fp, Psk.MorphInfo, section, psk.morph_infos)
-            case b'MRPHDATA':
+            case PskSectionName.MRPHDATA:
                 _read_types(fp, Psk.MorphData, section, psk.morph_data)
             case _:
                 if section.name.startswith(b'EXTRAUV'):

@@ -1,5 +1,27 @@
 from ctypes import Structure
+from enum import Enum
 from typing import Tuple
+
+
+class PskSectionName(bytes, Enum):
+    ACTRHEAD = b'ACTRHEAD'
+    PNTS0000 = b'PNTS0000'
+    VTXW0000 = b'VTXW0000'
+    FACE0000 = b'FACE0000'
+    MATT0000 = b'MATT0000'
+    REFSKELT = b'REFSKELT'
+    RAWWEIGHTS = b'RAWWEIGHTS'
+    FACE3200 = b'FACE3200'
+    VERTEXCOLOR = b'VERTEXCOLOR'
+    VTXNORMS = b'VTXNORMS'
+    MRPHINFO = b'MRPHINFO'
+    MRPHDATA = b'MRPHDATA'
+
+class PsaSectionName(bytes, Enum):
+    ANIMHEAD = b'ANIMHEAD'
+    BONENAMES = b'BONENAMES'
+    ANIMINFO = b'ANIMINFO'
+    ANIMKEYS = b'ANIMKEYS'
 
 
 class StructureEq(Structure):

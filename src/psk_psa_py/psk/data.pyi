@@ -1,5 +1,22 @@
 from ctypes import Structure
+from enum import Enum
 from ..shared.data import Color, Vector2, Vector3, Quaternion, PsxBone
+
+
+class PskSectionName(bytes, Enum):
+    ACTRHEAD: bytes
+    PNTS0000: bytes
+    VTXW0000: bytes
+    FACE0000: bytes
+    MATT0000: bytes
+    REFSKELT: bytes
+    RAWWEIGHTS: bytes
+    FACE3200: bytes
+    VERTEXCOLOR: bytes
+    VTXNORMS: bytes
+    MRPHINFO: bytes
+    MRPHDATA: bytes
+
 
 class Psk:
     class Wedge(Structure):

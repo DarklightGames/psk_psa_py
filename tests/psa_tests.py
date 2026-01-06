@@ -7,7 +7,7 @@ from psk_psa_py.psa.config import read_psa_config
 from psk_psa_py.psa.reader import PsaReader
 from psk_psa_py.psa.writer import write_psa
 from psk_psa_py.shared.data import Section, PsxBone
-from psk_psa_py.psa.data import Psa
+from psk_psa_py.psa.data import Psa, PsaSectionName
 
 
 def _assert_psa_round_trip_data_is_unchanged(path: Path):
@@ -25,7 +25,7 @@ def _assert_psa_round_trip_data_is_unchanged(path: Path):
 
     # Bones
     assert len(input.bones) == len(output.bones)
-    for i, (b1, b2) in enumerate(zip(input.bones, output.bones)):
+    for b1, b2 in zip(input.bones, output.bones):
         assert b1.children_count == b2.children_count
         assert b1.flags == b2.flags
         assert b1.length == b2.length
@@ -34,7 +34,7 @@ def _assert_psa_round_trip_data_is_unchanged(path: Path):
     
     # Sequences
     assert len(input.sequences) == len(output.sequences)
-    for i, ((k1, s1), (k2, s2)) in enumerate(zip(input.sequences.items(), output.sequences.items())):
+    for (k1, s1), (k2, s2) in zip(input.sequences.items(), output.sequences.items()):
         assert k1 == k2
         assert s1.bone_count == s2.bone_count
         assert s1.compression_style == s2.compression_style
@@ -98,12 +98,12 @@ def test_psa_unhandled_section():
     
     # Write ANIMHEAD section
     section = Section()
-    section.name = b'ANIMHEAD'
+    section.name = PsaSectionName.ANIMHEAD
     fp.write(section)
     
     # Write BONENAMES section
     section = Section()
-    section.name = b'BONENAMES'
+    section.name = PsaSectionName.BONENAMES
     section.data_size = 120
     section.data_count = 1
     fp.write(section)
@@ -121,13 +121,13 @@ def test_psa_unhandled_section():
     
     # Write ANIMINFO and ANIMKEYS sections
     section = Section()
-    section.name = b'ANIMINFO'
+    section.name = PsaSectionName.ANIMINFO
     section.data_size = 176
     section.data_count = 0
     fp.write(section)
     
     section = Section()
-    section.name = b'ANIMKEYS'
+    section.name = PsaSectionName.ANIMKEYS
     section.data_size = 32
     section.data_count = 0
     fp.write(section)
