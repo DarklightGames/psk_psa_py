@@ -3,21 +3,13 @@ import os
 import re
 import warnings
 from pathlib import Path
-from typing import BinaryIO, List
+from typing import BinaryIO
 from ..shared.data import Section, Color, PsxBone, Vector2, Vector3
+from ..shared.helpers import read_types
 from .data import Psk, PskSectionName
 
 
-def _read_types(fp, data_class, section: Section, data):
-    buffer_length = section.data_size * section.data_count
-    buffer = fp.read(buffer_length)
-    offset = 0
-    for _ in range(section.data_count):
-        data.append(data_class.from_buffer_copy(buffer, offset))
-        offset += section.data_size
-
-
-def _read_material_references(path: str) -> List[str]:
+def _read_material_references(path: str) -> list[str]:
     property_file_path = Path(path).with_suffix('.props.txt')
     if not property_file_path.is_file():
         # Property file does not exist.
@@ -52,41 +44,49 @@ def read_psk(fp: BinaryIO) -> Psk:
             case PskSectionName.ACTRHEAD:
                 pass
             case PskSectionName.PNTS0000:
-                _read_types(fp, Vector3, section, psk.points)
+                read_types(fp, Vector3, section, psk.points)
             case PskSectionName.VTXW0000:
                 if section.data_size == ctypes.sizeof(Psk._Wedge16):
-                    _read_types(fp, Psk._Wedge16, section, psk.wedges)
+                    wedges16: list[Psk._Wedge16] = []
+                    read_types(fp, Psk._Wedge16, section, wedges16)
+                    psk.wedges.extend(w.to_wedge() for w in wedges16)
                 elif section.data_size == ctypes.sizeof(Psk._Wedge32):
-                    _read_types(fp, Psk._Wedge32, section, psk.wedges)
+                    wedges32: list[Psk._Wedge32] = []
+                    read_types(fp, Psk._Wedge32, section, wedges32)
+                    psk.wedges.extend(w.to_wedge() for w in wedges32)
                 else:
-                    raise RuntimeError('Unrecognized wedge format')
+                    raise RuntimeError(f'Unrecognized wedge format with data size {section.data_size}')
             case PskSectionName.FACE0000:
-                _read_types(fp, Psk.Face, section, psk.faces)
+                faces16: list[Psk._Face16] = []
+                read_types(fp, Psk._Face16, section, faces16)
+                psk.faces.extend(f.to_face() for f in faces16)
             case PskSectionName.MATT0000:
-                _read_types(fp, Psk.Material, section, psk.materials)
+                read_types(fp, Psk.Material, section, psk.materials)
             case PskSectionName.REFSKELT:
-                _read_types(fp, PsxBone, section, psk.bones)
+                read_types(fp, PsxBone, section, psk.bones)
             case PskSectionName.RAWWEIGHTS:
-                _read_types(fp, Psk.Weight, section, psk.weights)
+                read_types(fp, Psk.Weight, section, psk.weights)
             case PskSectionName.FACE3200:
-                _read_types(fp, Psk._Face32, section, psk.faces)
+                faces32: list[Psk._Face32] = []
+                read_types(fp, Psk._Face32, section, faces32)
+                psk.faces.extend(f.to_face() for f in faces32)
             case PskSectionName.VERTEXCOLOR:
-                _read_types(fp, Color, section, psk.vertex_colors)
+                read_types(fp, Color, section, psk.vertex_colors)
             case PskSectionName.VTXNORMS:
-                _read_types(fp, Vector3, section, psk.vertex_normals)
+                read_types(fp, Vector3, section, psk.vertex_normals)
             case PskSectionName.MRPHINFO:
-                _read_types(fp, Psk.MorphInfo, section, psk.morph_infos)
+                read_types(fp, Psk.MorphInfo, section, psk.morph_infos)
             case PskSectionName.MRPHDATA:
-                _read_types(fp, Psk.MorphData, section, psk.morph_data)
+                read_types(fp, Psk.MorphData, section, psk.morph_data)
             case _:
                 if section.name.startswith(b'EXTRAUV'):
-                    extra_uvs: List[Vector2] = []
-                    _read_types(fp, Vector2, section, extra_uvs)
+                    extra_uvs: list[Vector2] = []
+                    read_types(fp, Vector2, section, extra_uvs)
                     psk.extra_uvs.append(extra_uvs)
                 else:
                     # Section is not handled, skip it.
                     fp.seek(section.data_size * section.data_count, os.SEEK_CUR)
-                    warnings.warn(f'Unrecognized section "{section.name} at position {fp.tell():15}"')
+                    warnings.warn(f'Unrecognized section {section.name!r} at position {fp.tell():15}')
 
     """
     Tools like UEViewer and CUE4Parse write the point index as a 32-bit integer, exploiting the fact that due to struct

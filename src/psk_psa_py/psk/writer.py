@@ -1,5 +1,5 @@
 import os
-from ctypes import Structure, sizeof
+from ctypes import Structure, sizeof, c_uint16
 from typing import BinaryIO, Type
 
 from .data import Psk, PskSectionName
@@ -11,7 +11,7 @@ MAX_BONE_COUNT = 2147483647
 MAX_MATERIAL_COUNT = 256
 
 
-def _write_section(fp, name: bytes, data_type: Type[Structure] | None = None, data: list | None = None):
+def _write_section(fp: BinaryIO, name: bytes, data_type: Type[Structure] | None = None, data: list | None = None):
     section = Section()
     section.name = name
     if data_type is not None and data is not None:
@@ -38,17 +38,25 @@ def write_psk(psk: Psk, fp: BinaryIO, is_extended_format: bool = False):
     _write_section(fp, PskSectionName.ACTRHEAD)
     _write_section(fp, PskSectionName.PNTS0000, Vector3, psk.points)
 
-    wedges = []
-    for w in psk.wedges:
-        wedge = Psk._Wedge16()
-        wedge.material_index = w.material_index
-        wedge.u = w.u
-        wedge.v = w.v
-        wedge.point_index = w.point_index
-        wedges.append(wedge)
+    wedges = [Psk._Wedge16(
+        point_index=w.point_index,
+        u=w.u,
+        v=w.v,
+        material_index=w.material_index,
+        reserved=0,
+        padding2=0
+    ) for w in psk.wedges]
 
     _write_section(fp, PskSectionName.VTXW0000, Psk._Wedge16, wedges)
-    _write_section(fp, PskSectionName.FACE0000, Psk.Face, psk.faces)
+    
+    faces = [Psk._Face16(
+        wedge_indices=(c_uint16 * 3)(*f.wedge_indices),
+        material_index=f.material_index,
+        aux_material_index=f.aux_material_index,
+        smoothing_groups=f.smoothing_groups
+    ) for f in psk.faces]
+    
+    _write_section(fp, PskSectionName.FACE0000, Psk._Face16, faces)
     _write_section(fp, PskSectionName.MATT0000, Psk.Material, psk.materials)
     _write_section(fp, PskSectionName.REFSKELT, PsxBone, psk.bones)
     _write_section(fp, PskSectionName.RAWWEIGHTS, Psk.Weight, psk.weights)

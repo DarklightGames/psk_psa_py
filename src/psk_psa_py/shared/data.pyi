@@ -1,31 +1,10 @@
 from ctypes import Structure
-from enum import Enum
 from typing import Tuple
 
 
-class PskSectionName(bytes, Enum):
-    ACTRHEAD = b'ACTRHEAD'
-    PNTS0000 = b'PNTS0000'
-    VTXW0000 = b'VTXW0000'
-    FACE0000 = b'FACE0000'
-    MATT0000 = b'MATT0000'
-    REFSKELT = b'REFSKELT'
-    RAWWEIGHTS = b'RAWWEIGHTS'
-    FACE3200 = b'FACE3200'
-    VERTEXCOLOR = b'VERTEXCOLOR'
-    VTXNORMS = b'VTXNORMS'
-    MRPHINFO = b'MRPHINFO'
-    MRPHDATA = b'MRPHDATA'
-
-class PsaSectionName(bytes, Enum):
-    ANIMHEAD = b'ANIMHEAD'
-    BONENAMES = b'BONENAMES'
-    ANIMINFO = b'ANIMINFO'
-    ANIMKEYS = b'ANIMKEYS'
-
-
 class StructureEq(Structure):
-    pass
+    def __eq__(self, other: object) -> bool: ...
+    def __ne__(self, other: object) -> bool: ...
 
 
 class Color(StructureEq):
@@ -34,13 +13,18 @@ class Color(StructureEq):
     b: int
     a: int
 
-    def normalized(self) -> Tuple:
-        pass
+    def normalized(self) -> Tuple: ...
+    def __iter__(self): ...
+    def __eq__(self, other: object) -> bool: ...
+    def __repr__(self) -> str: ...
 
 
 class Vector2(StructureEq):
     x: float
     y: float
+
+    def __iter__(self): ...
+    def __repr__(self) -> str: ...
 
 
 class Vector3(StructureEq):
@@ -49,8 +33,9 @@ class Vector3(StructureEq):
     z: float
 
     @classmethod
-    def zero(cls) -> Vector3:
-        pass
+    def zero(cls) -> Vector3: ...
+    def __iter__(self): ...
+    def __repr__(self) -> str: ...
 
 
 class Quaternion(StructureEq):
@@ -60,8 +45,9 @@ class Quaternion(StructureEq):
     w: float
 
     @classmethod
-    def identity(cls) -> Quaternion:
-        pass
+    def identity(cls) -> Quaternion: ...
+    def __iter__(self): ...
+    def __repr__(self) -> str: ...
 
 
 class PsxBone(StructureEq):

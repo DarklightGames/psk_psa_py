@@ -1,14 +1,15 @@
 from ctypes import sizeof
 from pathlib import Path
-from typing import List
+from typing import Sequence
 
 import numpy as np
 
 from .data import Psa, PsaSectionName
 from ..shared.data import Section, PsxBone
+from ..shared.helpers import read_types
 
 
-def _try_fix_cue4parse_issue_103(sequences) -> bool:
+def _try_fix_cue4parse_issue_103(sequences: Sequence[Psa.Sequence]) -> bool:
     # Detect if the file was exported from CUE4Parse prior to the fix for issue #103.
     # https://github.com/FabianFG/CUE4Parse/issues/103
     # The issue was that the frame_start_index was not being set correctly, and was always being set to the same value
@@ -69,7 +70,7 @@ class PsaReader(object):
                 matrix[frame_index, bone_index, :] = list(next(keys_iter).data)
         return matrix
 
-    def read_sequence_keys(self, sequence_name: str) -> List[Psa.Key]:
+    def read_sequence_keys(self, sequence_name: str) -> list[Psa.Key]:
         """
         Reads and returns the key data for a sequence.
 
@@ -92,15 +93,6 @@ class PsaReader(object):
             offset += data_size
         return keys
 
-    @staticmethod
-    def _read_types(fp, data_class, section: Section, data):
-        buffer_length = section.data_size * section.data_count
-        buffer = fp.read(buffer_length)
-        offset = 0
-        for _ in range(section.data_count):
-            data.append(data_class.from_buffer_copy(buffer, offset))
-            offset += section.data_size
-
     def _read(self, fp) -> Psa:
         psa = Psa()
         while fp.read(1):
@@ -110,10 +102,10 @@ class PsaReader(object):
                 case PsaSectionName.ANIMHEAD:
                     pass
                 case PsaSectionName.BONENAMES:
-                    PsaReader._read_types(fp, PsxBone, section, psa.bones)
+                    read_types(fp, PsxBone, section, psa.bones)
                 case PsaSectionName.ANIMINFO:
-                    sequences = []
-                    PsaReader._read_types(fp, Psa.Sequence, section, sequences)
+                    sequences: list[Psa.Sequence] = []
+                    read_types(fp, Psa.Sequence, section, sequences)
                     # Try to fix CUE4Parse bug, if necessary.
                     _try_fix_cue4parse_issue_103(sequences)
                     for sequence in sequences:
@@ -124,7 +116,7 @@ class PsaReader(object):
                     fp.seek(section.data_size * section.data_count, 1)
                 case _:
                     fp.seek(section.data_size * section.data_count, 1)
-                    print(f'Unrecognized section in PSA: "{section.name}"')
+                    print(f'Unrecognized section in PSA: {section.name!r}')
         return psa
 
 

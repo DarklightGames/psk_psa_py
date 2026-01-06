@@ -7,7 +7,7 @@ from psk_psa_py.psa.config import read_psa_config
 from psk_psa_py.psa.reader import PsaReader
 from psk_psa_py.psa.writer import write_psa
 from psk_psa_py.shared.data import Section, PsxBone
-from psk_psa_py.psa.data import Psa, PsaSectionName
+from psk_psa_py.psa.data import PsaSectionName
 
 
 def _assert_psa_round_trip_data_is_unchanged(path: Path):
@@ -66,91 +66,96 @@ def _assert_psa_round_trip_data_is_unchanged(path: Path):
         assert len(input_keys) == len(output_keys)
     
 
-def test_psa_import_export_round_trip():
+class TestPsa:
     """
-    Ensures that all the data survives a round-trip from being read and written out again.
+    PSA file tests.
     """
-    from glob import glob
 
-    test_data_directory = './tests/data/psa'
-    for filename in glob('*.psa', root_dir=test_data_directory):
-        path = Path(test_data_directory) / filename
-        path = path.resolve()
-        _assert_psa_round_trip_data_is_unchanged(path)
+    def test_round_trip_all_files(self):
+        """
+        Ensures that all the data survives a round-trip from being read and written out again.
+        """
+        from glob import glob
 
-
-def test_psa_config_read():
-    psa_reader = PsaReader('./tests/data/psa/Carlos_StrafeLF90_2.psa')
-    psa_sequence_names = list(psa_reader.sequences.keys())
-
-    config_path = './tests/data/psa/Carlos_StrafeLF90_2.config'
-    config = read_psa_config(psa_sequence_names, config_path)
-
-    print(config)
+        test_data_directory = './tests/data/psa'
+        for filename in glob('*.psa', root_dir=test_data_directory):
+            path = Path(test_data_directory) / filename
+            path = path.resolve()
+            _assert_psa_round_trip_data_is_unchanged(path)
 
 
-def test_psa_unhandled_section():
-    """
-    Test that unknown sections in PSA files are skipped with a print message.
-    """
-    # Create a synthetic PSA file with minimal valid structure plus an unknown section
-    fp = BytesIO()
-    
-    # Write ANIMHEAD section
-    section = Section()
-    section.name = PsaSectionName.ANIMHEAD
-    fp.write(section)
-    
-    # Write BONENAMES section
-    section = Section()
-    section.name = PsaSectionName.BONENAMES
-    section.data_size = 120
-    section.data_count = 1
-    fp.write(section)
-    fp.write(PsxBone())
+    def test_config_read(self):
+        psa_reader = PsaReader('./tests/data/psa/Carlos_StrafeLF90_2.psa')
+        psa_sequence_names = list(psa_reader.sequences.keys())
 
-    unknown_section_name = b'UNKNOWN9999'
-    
-    # Write an unknown section
-    section = Section()
-    section.name = unknown_section_name
-    section.data_size = 4
-    section.data_count = 3
-    fp.write(section)
-    fp.write(b'\xFF' * 12)
-    
-    # Write ANIMINFO and ANIMKEYS sections
-    section = Section()
-    section.name = PsaSectionName.ANIMINFO
-    section.data_size = 176
-    section.data_count = 0
-    fp.write(section)
-    
-    section = Section()
-    section.name = PsaSectionName.ANIMKEYS
-    section.data_size = 32
-    section.data_count = 0
-    fp.write(section)
-    
-    # Capture stdout to check for the print message
-    captured_output = StringIO()
-    old_stdout = sys.stdout
-    sys.stdout = captured_output
-    
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.psa', delete_on_close=True) as temp_file:
-            temp_file.write(fp.getvalue())
-            temp_path = temp_file.name
+        config_path = './tests/data/psa/Carlos_StrafeLF90_2.config'
+        config = read_psa_config(psa_sequence_names, config_path)
+
+        print(config)
+
+
+    def test_unhandled_section(self):
+        """
+        Test that unknown sections in PSA files are skipped with a print message.
+        """
+        # Create a synthetic PSA file with minimal valid structure plus an unknown section
+        fp = BytesIO()
+        
+        # Write ANIMHEAD section
+        section = Section()
+        section.name = PsaSectionName.ANIMHEAD
+        fp.write(section)
+        
+        # Write BONENAMES section
+        section = Section()
+        section.name = PsaSectionName.BONENAMES
+        section.data_size = 120
+        section.data_count = 1
+        fp.write(section)
+        fp.write(PsxBone())
+
+        unknown_section_name = b'UNKNOWN9999'
+        
+        # Write an unknown section
+        section = Section()
+        section.name = unknown_section_name
+        section.data_size = 4
+        section.data_count = 3
+        fp.write(section)
+        fp.write(b'\xFF' * 12)
+        
+        # Write ANIMINFO and ANIMKEYS sections
+        section = Section()
+        section.name = PsaSectionName.ANIMINFO
+        section.data_size = 176
+        section.data_count = 0
+        fp.write(section)
+        
+        section = Section()
+        section.name = PsaSectionName.ANIMKEYS
+        section.data_size = 32
+        section.data_count = 0
+        fp.write(section)
+        
+        # Capture stdout to check for the print message
+        captured_output = StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = captured_output
         
         try:
-            reader = PsaReader(temp_path)
-            reader.fp.close()
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.psa', delete_on_close=True) as temp_file:
+                temp_file.write(fp.getvalue())
+                temp_path = temp_file.name
             
-            output = captured_output.getvalue()
-            assert "Unrecognized section in PSA" in output
-            assert unknown_section_name.decode() in output
-            assert len(reader.psa.bones) == 1
+            try:
+                reader = PsaReader(temp_path)
+                reader.fp.close()
+                
+                output = captured_output.getvalue()
+                assert "Unrecognized section in PSA" in output
+                assert unknown_section_name.decode() in output
+                assert len(reader.psa.bones) == 1
+            finally:
+                os.unlink(temp_path)
         finally:
-            os.unlink(temp_path)
-    finally:
-        sys.stdout = old_stdout
+            sys.stdout = old_stdout

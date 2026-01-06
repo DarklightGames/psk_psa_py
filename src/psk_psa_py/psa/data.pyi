@@ -6,10 +6,10 @@ from ..shared.data import PsxBone, Quaternion, Vector3
 
 
 class PsaSectionName(bytes, Enum):
-    ANIMHEAD: bytes
-    BONENAMES: bytes
-    ANIMINFO: bytes
-    ANIMKEYS: bytes
+    ANIMHEAD = ...
+    BONENAMES = ...
+    ANIMINFO = ...
+    ANIMKEYS = ...
 
 
 class Psa:

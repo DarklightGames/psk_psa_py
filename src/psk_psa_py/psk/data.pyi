@@ -4,52 +4,71 @@ from ..shared.data import Color, Vector2, Vector3, Quaternion, PsxBone
 
 
 class PskSectionName(bytes, Enum):
-    ACTRHEAD: bytes
-    PNTS0000: bytes
-    VTXW0000: bytes
-    FACE0000: bytes
-    MATT0000: bytes
-    REFSKELT: bytes
-    RAWWEIGHTS: bytes
-    FACE3200: bytes
-    VERTEXCOLOR: bytes
-    VTXNORMS: bytes
-    MRPHINFO: bytes
-    MRPHDATA: bytes
+    ACTRHEAD = ...
+    PNTS0000 = ...
+    VTXW0000 = ...
+    FACE0000 = ...
+    MATT0000 = ...
+    REFSKELT = ...
+    RAWWEIGHTS = ...
+    FACE3200 = ...
+    VERTEXCOLOR = ...
+    VTXNORMS = ...
+    MRPHINFO = ...
+    MRPHDATA = ...
 
 
 class Psk:
-    class Wedge(Structure):
+    class Wedge:
         point_index: int
         u: float
         v: float
         material_index: int
-    
+        
+        def __init__(self, point_index: int, u: float, v: float, material_index: int = 0) -> None: ...
+        def __hash__(self) -> int: ...
+        def __eq__(self, other: object) -> bool: ...
 
     class _Wedge16(Structure):
         point_index: int
         u: float
         v: float
         material_index: int
+        
+        def to_wedge(self) -> Psk.Wedge: ...
 
-    
     class _Wedge32(Structure):
         point_index: int
         u: float
         v: float
         material_index: int
+        
+        def to_wedge(self) -> Psk.Wedge: ...
 
-    class Face(Structure):
+    class Face:
         wedge_indices: tuple[int, int, int]
         material_index: int
         aux_material_index: int
         smoothing_groups: int
+        
+        def __init__(self, wedge_indices: tuple[int, int, int], material_index: int = 0,
+                     aux_material_index: int = 0, smoothing_groups: int = 0) -> None: ...
+
+    class _Face16(Structure):
+        wedge_indices: tuple[int, int, int]
+        material_index: int
+        aux_material_index: int
+        smoothing_groups: int
+        
+        def to_face(self) -> Psk.Face: ...
 
     class _Face32(Structure):
         wedge_indices: tuple[int, int, int]
         material_index: int
         aux_material_index: int
         smoothing_groups: int
+        
+        def to_face(self) -> Psk.Face: ...
 
     class Material(Structure):
         name: bytes
@@ -85,37 +104,31 @@ class Psk:
         point_index: int
 
     @property
-    def has_extra_uvs(self) -> bool:
-        pass
+    def has_extra_uvs(self) -> bool: ...
 
     @property
-    def has_vertex_colors(self) -> bool:
-        pass
+    def has_vertex_colors(self) -> bool: ...
 
     @property
-    def has_vertex_normals(self) -> bool:
-        pass
+    def has_vertex_normals(self) -> bool: ...
 
     @property
-    def has_material_references(self) -> bool:
-        pass
+    def has_material_references(self) -> bool: ...
 
     @property
-    def has_morph_data(self) -> bool:
-        pass
+    def has_morph_data(self) -> bool: ...
     
-    def sort_and_normalize_weights(self):
-        pass
+    def sort_and_normalize_weights(self): ...
 
-    points: list[Vector3] = []
-    wedges: list[Psk.Wedge] = []
-    faces: list[Psk.Face] = []
-    materials: list[Psk.Material] = []
-    weights: list[Psk.Weight] = []
-    bones: list[PsxBone] = []
-    extra_uvs: list[list[Vector2]] = []
-    vertex_colors: list[Color] = []
-    vertex_normals: list[Vector3] = []
-    morph_infos: list[Psk.MorphInfo] = []
-    morph_data: list[Psk.MorphData] = []
-    material_references: list[str] = []
+    points: list[Vector3]
+    wedges: list[Psk.Wedge]
+    faces: list[Psk.Face]
+    materials: list[Psk.Material]
+    weights: list[Psk.Weight]
+    bones: list[PsxBone]
+    extra_uvs: list[list[Vector2]]
+    vertex_colors: list[Color]
+    vertex_normals: list[Vector3]
+    morph_infos: list[Psk.MorphInfo]
+    morph_data: list[Psk.MorphData]
+    material_references: list[str]

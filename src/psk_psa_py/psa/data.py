@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import List, OrderedDict as OrderedDictType
+from typing import OrderedDict as OrderedDictType
 from enum import Enum
 
 from ctypes import Structure, c_char, c_int32, c_float
@@ -56,9 +56,9 @@ class Psa:
             return repr((self.location, self.rotation, self.time))
 
     def __init__(self):
-        self.bones: List[PsxBone] = []
+        self.bones: list[PsxBone] = []
         self.sequences: OrderedDictType[str, Psa.Sequence] = OrderedDict()
-        self.keys: List[Psa.Key] = []
+        self.keys: list[Psa.Key] = []
 
 
 __all__ = [
