@@ -1,7 +1,10 @@
 from io import BytesIO
 from pathlib import Path
+import warnings
 from psk_psa_py.psk.reader import read_psk, read_psk_from_file
 from psk_psa_py.psk.writer import write_psk
+from psk_psa_py.psk.data import Psk
+from psk_psa_py.shared.data import Section, Vector3, PsxBone
 
 
 def _assert_psk_round_trip_data_is_unchanged(path: Path):
@@ -110,3 +113,130 @@ def test_psk_import_export_round_trip():
         count += 1
     
     assert count > 0
+
+def test_psk_extended_format():
+    psk = read_psk_from_file('./tests/data/psk/CS_Sarge_S0_Skelmesh.pskx')
+    assert len(psk.bones) == 266
+    assert len(psk.extra_uvs) == 1
+    assert psk.has_extra_uvs
+    assert len(psk.faces) == 50807
+    assert len(psk.vertex_colors) == 74280
+
+
+def test_psk_sort_and_normalize_weights():
+    """
+    Test the sort_and_normalize_weights method with various weight scenarios.
+    """
+    psk = Psk()
+    
+    # Test case 1: Weights for multiple points, unsorted, sum != 1.0
+    psk.weights = [
+        Psk.Weight(weight=0.6, point_index=1, bone_index=0),
+        Psk.Weight(weight=0.2, point_index=0, bone_index=0),
+        Psk.Weight(weight=0.4, point_index=1, bone_index=1),
+        Psk.Weight(weight=0.3, point_index=0, bone_index=1),
+    ]
+    
+    psk.sort_and_normalize_weights()
+    
+    # Weights should be sorted by point_index
+    assert psk.weights[0].point_index == 0
+    assert psk.weights[1].point_index == 0
+    assert psk.weights[2].point_index == 1
+    assert psk.weights[3].point_index == 1
+    
+    # Weights for point 0 should be normalized (sum was 0.5, so divide by 0.5)
+    assert abs(psk.weights[0].weight - 0.4) < 1e-6  # 0.2 / 0.5
+    assert abs(psk.weights[1].weight - 0.6) < 1e-6  # 0.3 / 0.5
+    
+    # Weights for point 1 should be normalized (sum was 1.0, so divide by 1.0)
+    assert abs(psk.weights[2].weight - 0.6) < 1e-6  # 0.6 / 1.0
+    assert abs(psk.weights[3].weight - 0.4) < 1e-6  # 0.4 / 1.0
+
+
+def test_psk_sort_and_normalize_weights_zero_sum():
+    """
+    Test sort_and_normalize_weights when weight sum is zero (should not divide by zero).
+    """
+    psk = Psk()
+    
+    psk.weights = [
+        Psk.Weight(weight=0.0, point_index=0, bone_index=0),
+        Psk.Weight(weight=0.0, point_index=0, bone_index=1),
+    ]
+    
+    # Should not raise an error even with zero sum
+    psk.sort_and_normalize_weights()
+    
+    # Weights should remain zero (not divided by zero)
+    assert psk.weights[0].weight == 0.0
+    assert psk.weights[1].weight == 0.0
+
+
+def test_psk_sort_and_normalize_weights_single_point():
+    """
+    Test sort_and_normalize_weights with single weight per point.
+    """
+    psk = Psk()
+    
+    psk.weights = [
+        Psk.Weight(weight=2.5, point_index=0, bone_index=0),
+        Psk.Weight(weight=0.5, point_index=1, bone_index=0),
+    ]
+    
+    psk.sort_and_normalize_weights()
+    
+    # Each weight should be normalized to 1.0 (single weight per point)
+    assert abs(psk.weights[0].weight - 1.0) < 1e-6
+    assert abs(psk.weights[1].weight - 1.0) < 1e-6
+
+
+def test_psk_unhandled_section():
+    """
+    Test that unknown sections in PSK files generate warnings and are skipped.
+    """
+    # Create a synthetic PSK file with minimal valid structure plus an unknown section
+    fp = BytesIO()
+    
+    # Write ACTRHEAD section (header)
+    section = Section()
+    section.name = b'ACTRHEAD'
+    fp.write(section)
+    
+    # Write a minimal PNTS0000 section (points)
+    section = Section()
+    section.name = b'PNTS0000'
+    section.data_size = 12
+    section.data_count = 1
+    fp.write(section)
+    fp.write(Vector3())
+    
+    # Write an unknown section
+    section = Section()
+    section.name = b'UNKNOWN1234567890123'
+    section.data_size = 4
+    section.data_count = 2
+    fp.write(section)
+    fp.write(b'\x00' * 8)
+    
+    # Write REFSKELT section (bones)
+    section = Section()
+    section.name = b'REFSKELT'
+    section.data_size = 120
+    section.data_count = 1
+    fp.write(section)
+    fp.write(PsxBone())
+    
+    # Read the PSK and capture warnings
+    fp.seek(0)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        psk = read_psk(fp)
+        
+        # Should have warned about the unknown section
+        assert len(w) == 1
+        assert "Unrecognized section" in str(w[0].message)
+    
+    # The PSK should still have read the valid sections
+    assert len(psk.points) == 1
+    assert len(psk.bones) == 1

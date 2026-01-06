@@ -1,4 +1,4 @@
-from ctypes import Structure, c_uint32, c_float, c_int32, c_uint8, c_int8, c_int16, c_char, c_uint16
+from ctypes import c_uint32, c_float, c_int32, c_uint8, c_int8, c_int16, c_char, c_uint16
 from typing import List
 
 from ..shared.data import Vector3, Quaternion, Color, Vector2, PsxBone, StructureEq

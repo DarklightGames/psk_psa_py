@@ -1,4 +1,5 @@
 from ctypes import sizeof
+from pathlib import Path
 from typing import List
 
 import numpy as np
@@ -31,7 +32,7 @@ class PsaReader(object):
     To read the key data for a particular sequence, call :read_sequence_keys.
     """
 
-    def __init__(self, path):
+    def __init__(self, path: str | Path):
         self.keys_data_offset: int = 0
         self.fp = open(path, 'rb')
         self.psa: Psa = self._read(self.fp)

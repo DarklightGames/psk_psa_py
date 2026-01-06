@@ -1,8 +1,13 @@
-from io import BytesIO
+from io import BytesIO, StringIO
 from pathlib import Path
+import sys
+import tempfile
+import os
 from psk_psa_py.psa.config import read_psa_config
 from psk_psa_py.psa.reader import PsaReader
 from psk_psa_py.psa.writer import write_psa
+from psk_psa_py.shared.data import Section, PsxBone
+from psk_psa_py.psa.data import Psa
 
 
 def _assert_psa_round_trip_data_is_unchanged(path: Path):
@@ -53,7 +58,7 @@ def _assert_psa_round_trip_data_is_unchanged(path: Path):
 
         assert (input_data_matrix == output_data_matrix).all()
 
-        for j, (k1, k2) in enumerate(zip(input_keys, output_keys)):
+        for k1, k2 in zip(input_keys, output_keys):
             assert k1.location == k2.location
             assert k1.rotation == k2.rotation
             assert k1.time == k2.time
@@ -81,4 +86,71 @@ def test_psa_config_read():
     config_path = './tests/data/psa/Carlos_StrafeLF90_2.config'
     config = read_psa_config(psa_sequence_names, config_path)
 
-    print(config.sequence_bone_flags)
+    print(config)
+
+
+def test_psa_unhandled_section():
+    """
+    Test that unknown sections in PSA files are skipped with a print message.
+    """
+    # Create a synthetic PSA file with minimal valid structure plus an unknown section
+    fp = BytesIO()
+    
+    # Write ANIMHEAD section
+    section = Section()
+    section.name = b'ANIMHEAD'
+    fp.write(section)
+    
+    # Write BONENAMES section
+    section = Section()
+    section.name = b'BONENAMES'
+    section.data_size = 120
+    section.data_count = 1
+    fp.write(section)
+    fp.write(PsxBone())
+
+    unknown_section_name = b'UNKNOWN9999'
+    
+    # Write an unknown section
+    section = Section()
+    section.name = unknown_section_name
+    section.data_size = 4
+    section.data_count = 3
+    fp.write(section)
+    fp.write(b'\xFF' * 12)
+    
+    # Write ANIMINFO and ANIMKEYS sections
+    section = Section()
+    section.name = b'ANIMINFO'
+    section.data_size = 176
+    section.data_count = 0
+    fp.write(section)
+    
+    section = Section()
+    section.name = b'ANIMKEYS'
+    section.data_size = 32
+    section.data_count = 0
+    fp.write(section)
+    
+    # Capture stdout to check for the print message
+    captured_output = StringIO()
+    old_stdout = sys.stdout
+    sys.stdout = captured_output
+    
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.psa', delete_on_close=True) as temp_file:
+            temp_file.write(fp.getvalue())
+            temp_path = temp_file.name
+        
+        try:
+            reader = PsaReader(temp_path)
+            reader.fp.close()
+            
+            output = captured_output.getvalue()
+            assert "Unrecognized section in PSA" in output
+            assert unknown_section_name.decode() in output
+            assert len(reader.psa.bones) == 1
+        finally:
+            os.unlink(temp_path)
+    finally:
+        sys.stdout = old_stdout
