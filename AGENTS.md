@@ -8,7 +8,7 @@
 ### Core Components
 - **`src/psk_psa_py/psk/`**: PSK (skeletal mesh) reader/writer for vertices, faces, bones, weights, and morph data
 - **`src/psk_psa_py/psa/`**: PSA (animation sequences) reader/writer for keyframe data with lazy-loading pattern
-- **`src/psk_psa_py/shared/`**: Shared data structures (Vector3, Quaternion, Color) and `Section` format definition
+- **`src/psk_psa_py/shared/`**: Shared data structures (`Vector3`, `Quaternion`, `Color`) and `Section` format definition
 
 ### Data Flow Pattern
 1. **Reader**: Parses binary file sections sequentially, instantiates `ctypes.Structure` subclasses from raw buffers
@@ -90,4 +90,9 @@ PSK extended format includes extra UVs, normals, colors, and morph data (written
 
 ## Configuration Files
 - [pyproject.toml](pyproject.toml): Build config, dependencies, package metadata
-- [requirements.txt](requirements.txt): Development dependencies (numpy, pytest, pytest-cov)
+- [requirements.txt](requirements.txt): Development dependencies (numpy, pytest, pytest-cov, mypy)
+
+## String Encoding
+* All string fields in PSK/PSA structures use byte strings (`bytes` type).
+* The tools that consume PSK/PSA files expect null-terminated Windows-1252 encoded strings.
+* When creating or modifying string fields, ensure proper encoding and null-termination.
