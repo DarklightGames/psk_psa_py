@@ -10,6 +10,7 @@ class PsaSectionName(bytes, Enum):
     BONENAMES = ...
     ANIMINFO = ...
     ANIMKEYS = ...
+    SCALEKEYS = ...
 
 
 class Psa:
@@ -38,12 +39,22 @@ class Psa:
         time: float
 
         @property
-        def data(self) -> Generator[float]:
-            pass
+        def data(self) -> Generator[float]: ...
+    
+    class ScaleKey(Structure):
+        scale: Vector3
+        time: float
+
+        @property
+        def data(self) -> Generator[float]: ...
         
     bones: list[PsxBone]
     sequences: OrderedDictType[str, Psa.Sequence]
     keys: list[Psa.Key]
+    scale_keys: list[Psa.ScaleKey]
+
+    def get_sequence_keys(self, sequence_name: str) -> list[Psa.Key]: ...
+    def get_sequence_scale_keys(self, sequence_name: str) -> list[Psa.ScaleKey]: ...
 
 
 __all__ = [

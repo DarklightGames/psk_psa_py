@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "psk_psa_py"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
     { name="Colin Basnett", email="cmbasnett@proton.me" }
 ]
@@ -17,9 +17,6 @@ classifiers = [
 ]
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
-dependencies = [
-    "numpy",
-]
 
 [project.urls]
 Homepage = "https://github.com/DarklightGames/psk_psa_py"

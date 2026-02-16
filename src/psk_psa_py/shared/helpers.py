@@ -1,5 +1,5 @@
 from ctypes import Structure
-from typing import List, Type, TypeVar, BinaryIO
+from typing import Type, TypeVar, BinaryIO
 from .data import Section
 
 T = TypeVar('T', bound=Structure)

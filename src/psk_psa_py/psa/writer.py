@@ -22,6 +22,8 @@ def write_psa(psa: Psa, fp: BinaryIO):
     _write_section(fp, PsaSectionName.BONENAMES, PsxBone, psa.bones)
     _write_section(fp, PsaSectionName.ANIMINFO, Psa.Sequence, list(psa.sequences.values()))
     _write_section(fp, PsaSectionName.ANIMKEYS, Psa.Key, psa.keys)
+    if len(psa.scale_keys) > 0:
+        _write_section(fp, PsaSectionName.SCALEKEYS, Psa.ScaleKey, psa.scale_keys)
 
 
 def write_psa_to_file(psa: Psa, path: str):

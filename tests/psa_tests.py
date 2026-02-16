@@ -4,24 +4,20 @@ import sys
 import tempfile
 import os
 from psk_psa_py.psa.config import read_psa_config
-from psk_psa_py.psa.reader import PsaReader
+from psk_psa_py.psa.reader import PsaReader, read_psa
 from psk_psa_py.psa.writer import write_psa
 from psk_psa_py.shared.data import Section, PsxBone
 from psk_psa_py.psa.data import PsaSectionName
 
 
 def _assert_psa_round_trip_data_is_unchanged(path: Path):
-    input_reader = PsaReader(path)
-
-    input = input_reader.psa
+    input = read_psa(open(path, 'rb'))
     
     fp = BytesIO()
-
     write_psa(input, fp)
     fp.seek(0)
 
-    output_reader = PsaReader(path)
-    output = output_reader.psa
+    output = read_psa(fp)
 
     # Bones
     assert len(input.bones) == len(output.bones)
@@ -49,18 +45,19 @@ def _assert_psa_round_trip_data_is_unchanged(path: Path):
         assert s1.frame_count == s2.frame_count
 
         # Keys
-        input_keys = input_reader.read_sequence_keys(k1)
-        output_keys = output_reader.read_sequence_keys(k2)
+        input_keys = input.get_sequence_keys(k1)
+        output_keys = output.get_sequence_keys(k1)
 
-        # Matrix
-        input_data_matrix = input_reader.read_sequence_data_matrix(k1)
-        output_data_matrix = output_reader.read_sequence_data_matrix(k2)
-
-        assert (input_data_matrix == output_data_matrix).all()
+        input_scale_keys = input.get_sequence_scale_keys(k1)
+        output_scale_keys = output.get_sequence_scale_keys(k2)
 
         for k1, k2 in zip(input_keys, output_keys):
             assert k1.location == k2.location
             assert k1.rotation == k2.rotation
+            assert k1.time == k2.time
+        
+        for k1, k2 in zip(input_scale_keys, output_scale_keys):
+            assert k1.scale == k2.scale
             assert k1.time == k2.time
 
         assert len(input_keys) == len(output_keys)
@@ -85,7 +82,7 @@ class TestPsa:
 
 
     def test_config_read(self):
-        psa_reader = PsaReader('./tests/data/psa/Carlos_StrafeLF90_2.psa')
+        psa_reader = PsaReader.from_path('./tests/data/psa/Carlos_StrafeLF90_2.psa')
         psa_sequence_names = list(psa_reader.sequences.keys())
 
         config_path = './tests/data/psa/Carlos_StrafeLF90_2.config'
@@ -148,13 +145,13 @@ class TestPsa:
                 temp_path = temp_file.name
             
             try:
-                reader = PsaReader(temp_path)
-                reader.fp.close()
+                reader = PsaReader.from_path(temp_path)
+                reader._fp.close()
                 
                 output = captured_output.getvalue()
                 assert "Unrecognized section in PSA" in output
                 assert unknown_section_name.decode() in output
-                assert len(reader.psa.bones) == 1
+                assert len(reader._psa.bones) == 1
             finally:
                 os.unlink(temp_path)
         finally:

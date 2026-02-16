@@ -86,6 +86,7 @@ class Psk(object):
 
     class _Face32(StructureEq):
         _pack_ = 1
+        _layout_ = 'ms'
         _fields_ = [
             ('wedge_indices', c_uint32 * 3),
             ('material_index', c_uint8),
