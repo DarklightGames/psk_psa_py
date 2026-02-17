@@ -1,8 +1,8 @@
 import os
-from ctypes import Structure, sizeof
+from ctypes import Structure, sizeof, c_uint16
 from typing import BinaryIO, Type
 
-from .data import Psk
+from .data import Psk, PskSectionName
 from ..shared.data import Color, PsxBone, Section, Vector2, Vector3
 
 MAX_WEDGE_COUNT = 65536
@@ -11,7 +11,7 @@ MAX_BONE_COUNT = 2147483647
 MAX_MATERIAL_COUNT = 256
 
 
-def _write_section(fp, name: bytes, data_type: Type[Structure] | None = None, data: list | None = None):
+def _write_section(fp: BinaryIO, name: bytes, data_type: Type[Structure] | None = None, data: list | None = None):
     section = Section()
     section.name = name
     if data_type is not None and data is not None:
@@ -35,31 +35,39 @@ def write_psk(psk: Psk, fp: BinaryIO, is_extended_format: bool = False):
     if len(psk.bones) == 0:
         raise RuntimeError(f'At least one bone must be marked for export')
 
-    _write_section(fp, b'ACTRHEAD')
-    _write_section(fp, b'PNTS0000', Vector3, psk.points)
+    _write_section(fp, PskSectionName.ACTRHEAD)
+    _write_section(fp, PskSectionName.PNTS0000, Vector3, psk.points)
 
-    wedges = []
-    for w in psk.wedges:
-        wedge = Psk._Wedge16()
-        wedge.material_index = w.material_index
-        wedge.u = w.u
-        wedge.v = w.v
-        wedge.point_index = w.point_index
-        wedges.append(wedge)
+    wedges = [Psk._Wedge16(
+        point_index=w.point_index,
+        u=w.u,
+        v=w.v,
+        material_index=w.material_index,
+        reserved=0,
+        padding2=0
+    ) for w in psk.wedges]
 
-    _write_section(fp, b'VTXW0000', Psk._Wedge16, wedges)
-    _write_section(fp, b'FACE0000', Psk.Face, psk.faces)
-    _write_section(fp, b'MATT0000', Psk.Material, psk.materials)
-    _write_section(fp, b'REFSKELT', PsxBone, psk.bones)
-    _write_section(fp, b'RAWWEIGHTS', Psk.Weight, psk.weights)
+    _write_section(fp, PskSectionName.VTXW0000, Psk._Wedge16, wedges)
+    
+    faces = [Psk._Face16(
+        wedge_indices=(c_uint16 * 3)(*f.wedge_indices),
+        material_index=f.material_index,
+        aux_material_index=f.aux_material_index,
+        smoothing_groups=f.smoothing_groups
+    ) for f in psk.faces]
+    
+    _write_section(fp, PskSectionName.FACE0000, Psk._Face16, faces)
+    _write_section(fp, PskSectionName.MATT0000, Psk.Material, psk.materials)
+    _write_section(fp, PskSectionName.REFSKELT, PsxBone, psk.bones)
+    _write_section(fp, PskSectionName.RAWWEIGHTS, Psk.Weight, psk.weights)
 
     if is_extended_format:
         for i, extra_uvs in enumerate(psk.extra_uvs):
             _write_section(fp, f'EXTRAUV{i}'.encode('windows-1252'), Vector2, extra_uvs)
-        _write_section(fp, b'VTXNORMS', Vector3, psk.vertex_normals)
-        _write_section(fp, b'VERTEXCOLOR', Color, psk.vertex_colors)
-        _write_section(fp, b'MRPHINFO', Psk.MorphInfo, psk.morph_infos)
-        _write_section(fp, b'MRPHDATA', Psk.MorphData, psk.morph_data)
+        _write_section(fp, PskSectionName.VTXNORMS, Vector3, psk.vertex_normals)
+        _write_section(fp, PskSectionName.VERTEXCOLOR, Color, psk.vertex_colors)
+        _write_section(fp, PskSectionName.MRPHINFO, Psk.MorphInfo, psk.morph_infos)
+        _write_section(fp, PskSectionName.MRPHDATA, Psk.MorphData, psk.morph_data)
 
 
 def write_psk_to_path(psk: Psk, path: str, is_extended_format: bool = False):

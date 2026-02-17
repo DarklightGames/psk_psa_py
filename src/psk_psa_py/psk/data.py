@@ -1,7 +1,22 @@
-from ctypes import Structure, c_uint32, c_float, c_int32, c_uint8, c_int8, c_int16, c_char, c_uint16
-from typing import List
+from ctypes import c_uint32, c_float, c_int32, c_uint8, c_int8, c_int16, c_char, c_uint16
+from enum import Enum
 
 from ..shared.data import Vector3, Quaternion, Color, Vector2, PsxBone, StructureEq
+
+
+class PskSectionName(bytes, Enum):
+    ACTRHEAD = b'ACTRHEAD'
+    PNTS0000 = b'PNTS0000'
+    VTXW0000 = b'VTXW0000'
+    FACE0000 = b'FACE0000'
+    MATT0000 = b'MATT0000'
+    REFSKELT = b'REFSKELT'
+    RAWWEIGHTS = b'RAWWEIGHTS'
+    FACE3200 = b'FACE3200'
+    VERTEXCOLOR = b'VERTEXCOLOR'
+    VTXNORMS = b'VTXNORMS'
+    MRPHINFO = b'MRPHINFO'
+    MRPHDATA = b'MRPHDATA'
 
 
 class Psk(object):
@@ -10,10 +25,16 @@ class Psk(object):
             self.point_index: int = point_index
             self.u: float = u
             self.v: float = v
-            self.material_index = material_index
+            self.material_index: int = material_index
 
         def __hash__(self):
             return hash(f'{self.point_index}-{self.u}-{self.v}-{self.material_index}')
+
+        def __eq__(self, other):
+            return (self.point_index == other.point_index and 
+                    self.u == other.u and 
+                    self.v == other.v and 
+                    self.material_index == other.material_index)
 
     class _Wedge16(StructureEq):
         _fields_ = [
@@ -25,6 +46,9 @@ class Psk(object):
             ('padding2', c_int16)
         ]
 
+        def to_wedge(self) -> 'Psk.Wedge':
+            return Psk.Wedge(self.point_index, self.u, self.v, self.material_index)
+
     class _Wedge32(StructureEq):
         _fields_ = [
             ('point_index', c_uint32),
@@ -33,7 +57,18 @@ class Psk(object):
             ('material_index', c_uint32)
         ]
 
-    class Face(StructureEq):
+        def to_wedge(self) -> 'Psk.Wedge':
+            return Psk.Wedge(self.point_index, self.u, self.v, self.material_index)
+
+    class Face(object):
+        def __init__(self, wedge_indices: tuple[int, int, int], material_index: int = 0, 
+                     aux_material_index: int = 0, smoothing_groups: int = 0):
+            self.wedge_indices: tuple[int, int, int] = wedge_indices
+            self.material_index: int = material_index
+            self.aux_material_index: int = aux_material_index
+            self.smoothing_groups: int = smoothing_groups
+
+    class _Face16(StructureEq):
         _fields_ = [
             ('wedge_indices', c_uint16 * 3),
             ('material_index', c_uint8),
@@ -41,14 +76,31 @@ class Psk(object):
             ('smoothing_groups', c_int32)
         ]
 
+        def to_face(self) -> 'Psk.Face':
+            return Psk.Face(
+                tuple(self.wedge_indices),
+                self.material_index,
+                self.aux_material_index,
+                self.smoothing_groups
+            )
+
     class _Face32(StructureEq):
         _pack_ = 1
+        _layout_ = 'ms'
         _fields_ = [
             ('wedge_indices', c_uint32 * 3),
             ('material_index', c_uint8),
             ('aux_material_index', c_uint8),
             ('smoothing_groups', c_int32)
         ]
+
+        def to_face(self) -> 'Psk.Face':
+            return Psk.Face(
+                tuple(self.wedge_indices),
+                self.material_index,
+                self.aux_material_index,
+                self.smoothing_groups
+            )
 
     class Material(StructureEq):
         _fields_ = [
@@ -140,21 +192,22 @@ class Psk(object):
             weight_index += point_weight_total
     
     def __init__(self):
-        self.points: List[Vector3] = []
-        self.wedges: List[Psk.Wedge] = []
-        self.faces: List[Psk.Face] = []
-        self.materials: List[Psk.Material] = []
-        self.weights: List[Psk.Weight] = []
-        self.bones: List[PsxBone] = []
-        self.extra_uvs: List[List[Vector2]] = []
-        self.vertex_colors: List[Color] = []
-        self.vertex_normals: List[Vector3] = []
-        self.morph_infos: List[Psk.MorphInfo] = []
-        self.morph_data: List[Psk.MorphData] = []
-        self.material_references: List[str] = []
+        self.points: list[Vector3] = []
+        self.wedges: list[Psk.Wedge] = []
+        self.faces: list[Psk.Face] = []
+        self.materials: list[Psk.Material] = []
+        self.weights: list[Psk.Weight] = []
+        self.bones: list[PsxBone] = []
+        self.extra_uvs: list[list[Vector2]] = []
+        self.vertex_colors: list[Color] = []
+        self.vertex_normals: list[Vector3] = []
+        self.morph_infos: list[Psk.MorphInfo] = []
+        self.morph_data: list[Psk.MorphData] = []
+        self.material_references: list[str] = []
 
 __all__ = [
-    'Psk'
+    'Psk',
+    'PskSectionName'
 ]
 
 def __dir__():

@@ -1,13 +1,13 @@
 from ctypes import sizeof
-from typing import List
+from pathlib import Path
+from typing import BinaryIO, Sequence
 
-import numpy as np
-
-from .data import Psa
+from .data import Psa, PsaSectionName
 from ..shared.data import Section, PsxBone
+from ..shared.helpers import read_types
 
 
-def _try_fix_cue4parse_issue_103(sequences) -> bool:
+def _try_fix_cue4parse_issue_103(sequences: Sequence[Psa.Sequence]) -> bool:
     # Detect if the file was exported from CUE4Parse prior to the fix for issue #103.
     # https://github.com/FabianFG/CUE4Parse/issues/103
     # The issue was that the frame_start_index was not being set correctly, and was always being set to the same value
@@ -24,51 +24,67 @@ def _try_fix_cue4parse_issue_103(sequences) -> bool:
     return False
 
 
-class PsaReader(object):
+def read_psa(fp: BinaryIO):
+    psa = Psa()
+    while fp.read(1):
+        fp.seek(-1, 1)
+        section = Section.from_buffer_copy(fp.read(sizeof(Section)))
+        match section.name:
+            case PsaSectionName.ANIMHEAD:
+                pass
+            case PsaSectionName.BONENAMES:
+                read_types(fp, PsxBone, section, psa.bones)
+            case PsaSectionName.ANIMINFO:
+                sequences: list[Psa.Sequence] = []
+                read_types(fp, Psa.Sequence, section, sequences)
+                # Try to fix CUE4Parse bug, if necessary.
+                _try_fix_cue4parse_issue_103(sequences)
+                for sequence in sequences:
+                    psa.sequences[sequence.name.decode()] = sequence
+            case PsaSectionName.ANIMKEYS:
+                read_types(fp, Psa.Key, section, psa.keys)
+            case PsaSectionName.SCALEKEYS:
+                read_types(fp, Psa.ScaleKey, section, psa.scale_keys)
+            case _:
+                fp.seek(section.data_size * section.data_count, 1)
+                print(f'Unrecognized section in PSA: {section.name!r}')
+    return psa
+
+
+class PsaReader:
     """
     This class reads the sequences and bone information immediately upon instantiation and holds onto a file handle.
+
     The keyframe data is not read into memory upon instantiation due to its potentially very large size.
-    To read the key data for a particular sequence, call :read_sequence_keys.
+
+    To read the key data for a particular sequence, call `read_sequence_keys`.
     """
 
-    def __init__(self, path):
-        self.keys_data_offset: int = 0
-        self.fp = open(path, 'rb')
-        self.psa: Psa = self._read(self.fp)
+    def __init__(self, fp: BinaryIO):
+        self._keys_data_offset: int = 0
+        self._scale_keys_data_offset: int | None = None
+        self._fp = fp
+        self._psa: Psa = self._read(self._fp)
+    
+    @staticmethod
+    def from_path(path: str | Path):
+        return PsaReader(open(path, 'rb'))
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.fp.close()
+        self._fp.close()
 
     @property
     def bones(self):
-        return self.psa.bones
+        return self._psa.bones
 
     @property
     def sequences(self):
-        return self.psa.sequences
+        return self._psa.sequences
 
-    def read_sequence_data_matrix(self, sequence_name: str) -> np.ndarray:
-        """
-        Reads and returns the data matrix for the given sequence.
-        
-        @param sequence_name: The name of the sequence.
-        @return: An FxBx7 matrix where F is the number of frames, B is the number of bones.
-        """
-        sequence = self.psa.sequences[sequence_name]
-        keys = self.read_sequence_keys(sequence_name)
-        bone_count = len(self.bones)
-        matrix_size = sequence.frame_count, bone_count, 7
-        matrix = np.zeros(matrix_size)
-        keys_iter = iter(keys)
-        for frame_index in range(sequence.frame_count):
-            for bone_index in range(bone_count):
-                matrix[frame_index, bone_index, :] = list(next(keys_iter).data)
-        return matrix
-
-    def read_sequence_keys(self, sequence_name: str) -> List[Psa.Key]:
+    def read_sequence_keys(self, sequence_name: str) -> list[Psa.Key]:
         """
         Reads and returns the key data for a sequence.
 
@@ -76,13 +92,13 @@ class PsaReader(object):
         @return: A list of Psa.Keys.
         """
         # Set the file reader to the beginning of the keys data
-        sequence = self.psa.sequences[sequence_name]
+        sequence = self._psa.sequences[sequence_name]
         data_size = sizeof(Psa.Key)
-        bone_count = len(self.psa.bones)
+        bone_count = len(self._psa.bones)
         buffer_length = data_size * bone_count * sequence.frame_count
-        sequence_keys_offset = self.keys_data_offset + (sequence.frame_start_index * bone_count * data_size)
-        self.fp.seek(sequence_keys_offset, 0)
-        buffer = self.fp.read(buffer_length)
+        sequence_keys_offset = self._keys_data_offset + (sequence.frame_start_index * bone_count * data_size)
+        self._fp.seek(sequence_keys_offset, 0)
+        buffer = self._fp.read(buffer_length)
         offset = 0
         keys = []
         for _ in range(sequence.frame_count * bone_count):
@@ -91,44 +107,72 @@ class PsaReader(object):
             offset += data_size
         return keys
 
-    @staticmethod
-    def _read_types(fp, data_class, section: Section, data):
-        buffer_length = section.data_size * section.data_count
-        buffer = fp.read(buffer_length)
-        offset = 0
-        for _ in range(section.data_count):
-            data.append(data_class.from_buffer_copy(buffer, offset))
-            offset += section.data_size
+    def read_sequence_scale_keys(self, sequence_name: str) -> list[Psa.ScaleKey]:
+        """
+        Reads and returns the scale key data for a sequence.
 
-    def _read(self, fp) -> Psa:
+        @param sequence_name: The name of the sequence.
+        @return: A list of Psa.ScaleKeys.
+        """
+        if self._scale_keys_data_offset is None:
+            # This PSA has no scale keys, return an empty list.
+            return []
+        sequence = self._psa.sequences[sequence_name]
+        data_size = sizeof(Psa.ScaleKey)
+        bone_count = len(self._psa.bones)
+        buffer_length = data_size * bone_count * sequence.frame_count
+        if buffer_length == 0:
+            # In many cases, files are written with this section, but have no data (particularly out of FModel).
+            # Therefore, simply return an empty array.
+            return []
+        sequence_scale_keys_offset = self._scale_keys_data_offset + (sequence.frame_start_index * bone_count * data_size)
+        self._fp.seek(sequence_scale_keys_offset)
+        buffer = self._fp.read(buffer_length)
+        offset = 0
+        scale_keys = []
+        for _ in range(sequence.frame_count * bone_count):
+            scale_key = Psa.ScaleKey.from_buffer_copy(buffer, offset)
+            scale_keys.append(scale_key)
+            offset += data_size
+        return scale_keys
+
+    def _read(self, fp: BinaryIO) -> Psa:
         psa = Psa()
         while fp.read(1):
             fp.seek(-1, 1)
             section = Section.from_buffer_copy(fp.read(sizeof(Section)))
             match section.name:
-                case b'ANIMHEAD':
+                case PsaSectionName.ANIMHEAD:
                     pass
-                case b'BONENAMES':
-                    PsaReader._read_types(fp, PsxBone, section, psa.bones)
-                case b'ANIMINFO':
-                    sequences = []
-                    PsaReader._read_types(fp, Psa.Sequence, section, sequences)
+                case PsaSectionName.BONENAMES:
+                    read_types(fp, PsxBone, section, psa.bones)
+                case PsaSectionName.ANIMINFO:
+                    sequences: list[Psa.Sequence] = []
+                    read_types(fp, Psa.Sequence, section, sequences)
                     # Try to fix CUE4Parse bug, if necessary.
                     _try_fix_cue4parse_issue_103(sequences)
                     for sequence in sequences:
                         psa.sequences[sequence.name.decode()] = sequence
-                case b'ANIMKEYS':
+                case PsaSectionName.ANIMKEYS:
                     # Skip keys on this pass. We will keep this file open and read from it as needed.
-                    self.keys_data_offset = fp.tell()
+                    self._keys_data_offset = fp.tell()
+                    fp.seek(section.data_size * section.data_count, 1)
+                case PsaSectionName.SCALEKEYS:
+                    if section.data_count == 0:
+                        # An empty SCALEKEYS section is common for exports from FModel, treat it as though it doesn't exist.
+                        continue
+                    # Skip scale keys on this pass. We will keep this file open and read from it as needed.
+                    self._scale_keys_data_offset = fp.tell()
                     fp.seek(section.data_size * section.data_count, 1)
                 case _:
                     fp.seek(section.data_size * section.data_count, 1)
-                    print(f'Unrecognized section in PSA: "{section.name}"')
+                    print(f'Unrecognized section in PSA: {section.name!r}')
         return psa
 
 
 __all__ = [
-    'PsaReader'
+    'PsaReader',
+    'read_psa'
 ]
 
 
