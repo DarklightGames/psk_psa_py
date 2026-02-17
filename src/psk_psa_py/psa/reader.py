@@ -84,6 +84,10 @@ class PsaReader:
     def sequences(self):
         return self._psa.sequences
 
+    @property
+    def has_scale_keys(self) -> bool:
+        return self._scale_keys_data_offset is not None
+
     def read_sequence_keys(self, sequence_name: str) -> list[Psa.Key]:
         """
         Reads and returns the key data for a sequence.
