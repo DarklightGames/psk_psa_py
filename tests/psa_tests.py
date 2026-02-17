@@ -14,7 +14,7 @@ def _assert_psa_round_trip_data_is_unchanged(path: Path):
     input = read_psa(open(path, 'rb'))
     
     fp = BytesIO()
-    write_psa(input, fp)
+    write_psa(input, fp, write_scale_keys=True)
     fp.seek(0)
 
     output = read_psa(fp)
@@ -46,10 +46,13 @@ def _assert_psa_round_trip_data_is_unchanged(path: Path):
 
         # Keys
         input_keys = input.get_sequence_keys(k1)
-        output_keys = output.get_sequence_keys(k1)
+        output_keys = output.get_sequence_keys(k2)
 
         input_scale_keys = input.get_sequence_scale_keys(k1)
         output_scale_keys = output.get_sequence_scale_keys(k2)
+
+        assert len(input_keys) == len(output_keys)
+        assert len(input_scale_keys) == len(output_scale_keys)
 
         for k1, k2 in zip(input_keys, output_keys):
             assert k1.location == k2.location
@@ -61,7 +64,35 @@ def _assert_psa_round_trip_data_is_unchanged(path: Path):
             assert k1.time == k2.time
 
         assert len(input_keys) == len(output_keys)
-    
+
+
+class TestPsaReader:
+    """
+    PSA reader tests.
+    """
+
+    def test_read_with_scale_keys(self):
+        with PsaReader.from_path('./tests/data/psa/AS_chr_omega_chara_select_decision.psa') as reader:
+            bones = reader.bones
+            sequences = reader.sequences
+
+            assert len(bones) == 50
+            assert len(sequences) == 1
+
+            sequence_name = 'AS_chr_omega_chara_select_decision'
+
+            assert sequence_name in sequences
+            sequence = sequences[sequence_name]
+
+            assert sequence.bone_count == len(bones)
+            assert sequence.frame_count == 161
+            key_count = sequence.bone_count * sequence.frame_count
+
+            keys = reader.read_sequence_keys(sequence_name)
+            assert len(keys) == key_count
+
+            scale_keys = reader.read_sequence_scale_keys(sequence_name)
+            assert len(scale_keys) == key_count
 
 class TestPsa:
     """

@@ -86,7 +86,7 @@ class Psa:
         return self.keys[start:end]
 
     def get_sequence_scale_keys(self, sequence_name: str) -> list[Psa.ScaleKey]:
-        if len(self.scale_keys):
+        if len(self.scale_keys) == 0:
             return []
         start, end = self.get_sequence_key_range(sequence_name)
         return self.scale_keys[start:end]
