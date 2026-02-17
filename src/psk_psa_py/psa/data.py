@@ -81,11 +81,11 @@ class Psa:
         end = frame_index + len(self.bones) * sequence.frame_count
         return start, end
     
-    def get_sequence_keys(self, sequence_name: str) -> list[Psa.Key]:
+    def get_sequence_keys(self, sequence_name: str) -> list[Key]:
         start, end = self.get_sequence_key_range(sequence_name)
         return self.keys[start:end]
 
-    def get_sequence_scale_keys(self, sequence_name: str) -> list[Psa.ScaleKey]:
+    def get_sequence_scale_keys(self, sequence_name: str) -> list[ScaleKey]:
         if len(self.scale_keys) == 0:
             return []
         start, end = self.get_sequence_key_range(sequence_name)
